@@ -165,7 +165,7 @@ public final class TurkeyCities {
         StdDraw.setCanvasSize(2377 / 2, (1055 + 130) / 2);
         StdDraw.setXscale(0, 2377);
         StdDraw.setYscale(0, 1055 + 130);
-        StdDraw.picture(2377 / 2.0, (1055 + 130) / 2.0 + 65, "map.png", 2377, 1055);
+        StdDraw.picture(2380 / 2.0, (1055 + 130) / 2.0 + 65, "map.png", 2377, 1055);
 
         // HashMap to store city positions
         HashMap<String, double[]> cityPositions = new HashMap<>();
