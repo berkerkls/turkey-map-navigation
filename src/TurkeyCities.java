@@ -22,6 +22,15 @@ public final class TurkeyCities {
     private static String activeField = ""; // "departure" or "destination"
     private static String errorMessage = "";
 
+
+    public static void main(String[] args) {
+        HashMap<String, double[]> cityPositions = renderMapWithCities();
+        drawRoads(cityPositions);
+        drawInputUI();
+        StdDraw.show();
+        handleInput(cityPositions);
+    }
+
     public static void drawInputUI() {
         drawInputUI(null, 0.0);
     }
@@ -89,43 +98,11 @@ public final class TurkeyCities {
             // Total distance
             StdDraw.textLeft(900, 55, "Total Distance: " + String.format("%.2f", totalDistance) + " km");
 
-            // Shortest path
-            StdDraw.textLeft(900, 35, "Shortest Path:");
-
-            // Build path string
+            // Build and display shortest path on one line
             String pathString = String.join(" -> ", path);
-
-            // If path is too long, display it on multiple lines
-            StdDraw.setFont(new Font("Arial", Font.PLAIN, 9));
-            if (pathString.length() > 70) {
-                // Split path into multiple lines if too long
-                ArrayList<String> lines = new ArrayList<>();
-                StringBuilder currentLine = new StringBuilder();
-
-                for (int i = 0; i < path.size(); i++) {
-                    String city = path.get(i);
-                    String addition = (i > 0 ? " -> " : "") + city;
-
-                    if (currentLine.length() + addition.length() > 70 && currentLine.length() > 0) {
-                        lines.add(currentLine.toString());
-                        currentLine = new StringBuilder(city);
-                    } else {
-                        currentLine.append(addition);
-                    }
-                }
-                if (currentLine.length() > 0) {
-                    lines.add(currentLine.toString());
-                }
-
-                // Display each line
-                int yPos = 20;
-                for (String line : lines) {
-                    StdDraw.textLeft(900, yPos, line);
-                    yPos -= 10;
-                }
-            } else {
-                StdDraw.textLeft(900, 20, pathString);
-            }
+            StdDraw.setPenColor(StdDraw.BLACK);
+            StdDraw.setFont(new Font("Arial", Font.BOLD, path.size() > 12 ? 8 : 11));
+            StdDraw.textLeft(900, 35, "Shortest Path: " + pathString);
         }
 
         // Error message
@@ -155,7 +132,7 @@ public final class TurkeyCities {
                     errorMessage = ""; // Clear error when clicking input
                     drawInputUI();
                     StdDraw.show();
-                    StdDraw.pause(200);
+                    StdDraw.pause(200); // giving timeout to get rid of from flash effect
                 }
                 // Check if destination input box clicked
                 else if (x >= 300 && x <= 600 && y >= 25 && y <= 55) {
@@ -163,7 +140,7 @@ public final class TurkeyCities {
                     errorMessage = ""; // Clear error when clicking input
                     drawInputUI();
                     StdDraw.show();
-                    StdDraw.pause(200);
+                    StdDraw.pause(200); // giving timeout to get rid of from flash effect
                 }
                 // Check if Start button clicked
                 else if (x >= 640 && x <= 760 && y >= 35 && y <= 85) {
@@ -245,7 +222,6 @@ public final class TurkeyCities {
 
     public static HashMap<String, double[]> renderMapWithCities() {
         // Render the map with space below for input UI
-
         // setting canvas size and adding map.png according to width and height of canvas
         StdDraw.setCanvasSize(2377 / 2, (1055 + 130) / 2);
         StdDraw.setXscale(0, 2377);
@@ -293,8 +269,8 @@ public final class TurkeyCities {
 
             // Draw city name
             StdDraw.setPenColor(StdDraw.BLACK);                             // city name color
-            StdDraw.setFont(new Font("Arial", Font.PLAIN, 8));
-            StdDraw.text(x, y - 15, cityName);
+            StdDraw.setFont(new Font("Arial", Font.PLAIN, 8));  // set font
+            StdDraw.text(x, y - 15, cityName);                          // write city name under the dot
             StdDraw.setPenColor(StdDraw.RED);
         }
 
@@ -302,8 +278,9 @@ public final class TurkeyCities {
     }
 
     public static void drawRoads(HashMap<String, double[]> cityPositions) {
-        try {
-            File file = new File("src/datas/cities-roads.txt");
+        // cityPosition arguments has been filled in renderMapWithCities() as <cityName,[x,y]positions>
+         try {
+            File file = new File("src/datas/cities-roads.txt");         // get roads
             Scanner scanner = new Scanner(file);
 
             StdDraw.setPenColor(StdDraw.RED);
@@ -311,19 +288,19 @@ public final class TurkeyCities {
 
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
-                String[] cities = line.split(" - ");
+                String[] cities = line.split(" - ");                // divide by text to find start and end point of road
 
                 if (cities.length == 2) {
-                    String city1Name = cities[0];
-                    String city2Name = cities[1];
+                    String city1Name = cities[0];                           // start point
+                    String city2Name = cities[1];                           // end point
 
                     // Get coordinates for both cities
-                    double[] city1Pos = cityPositions.get(city1Name);
-                    double[] city2Pos = cityPositions.get(city2Name);
+                    double[] city1Pos = cityPositions.get(city1Name);           // get start city position
+                    double[] city2Pos = cityPositions.get(city2Name);           // get end city position
 
                     // Draw line if both cities exist (shifted up by 130 pixels)
                     if (city1Pos != null && city2Pos != null) {
-                        StdDraw.line(city1Pos[0], city1Pos[1] + 130, city2Pos[0], city2Pos[1] + 130);
+                        StdDraw.line(city1Pos[0], city1Pos[1] + 130, city2Pos[0], city2Pos[1] + 130); // draw lines between cities we add 130 because we gave some gap for input
                     }
                 }
             }
@@ -569,7 +546,10 @@ public final class TurkeyCities {
     }
 
     /**
-     * Draw the shortest path on the map
+     * Draw the shortest path on the map with animation
+     * Animation includes:
+     * 1. Immediate green path drawing (all at once)
+     * 2. Moving dot that travels along the path
      * @param path List of cities in the shortest path
      * @param cityPositions HashMap containing city positions
      */
@@ -581,7 +561,7 @@ public final class TurkeyCities {
             return;
         }
 
-        // Draw shortest path with green color and thick line
+        // Phase 1: Draw entire green path immediately (no animation)
         StdDraw.setPenColor(StdDraw.GREEN);
         StdDraw.setPenRadius(0.005);
 
@@ -593,19 +573,111 @@ public final class TurkeyCities {
             double[] pos2 = cityPositions.get(city2);
 
             if (pos1 != null && pos2 != null) {
-                // +130 shift for input area
+                // Draw path segment immediately
                 StdDraw.line(pos1[0], pos1[1] + 130, pos2[0], pos2[1] + 130);
             }
         }
 
         StdDraw.show();
+        StdDraw.pause(300);
+
+        // Phase 2: Moving dot animation along the completed path
+        animateMovingDot(path, cityPositions);
     }
 
-    public static void main(String[] args) {
-        HashMap<String, double[]> cityPositions = renderMapWithCities();
-        drawRoads(cityPositions);
-        drawInputUI();
-        StdDraw.show();
-        handleInput(cityPositions);
+    /**
+     * Highlight a city with a specific color (creates a pulsing effect)
+     * @param x X coordinate of city
+     * @param y Y coordinate of city (already shifted)
+     * @param color Color to highlight with
+     */
+    private static void highlightCity(double x, double y, java.awt.Color color) {
+        // Draw larger circle for highlight effect
+        StdDraw.setPenColor(color);
+        StdDraw.filledCircle(x, y, 8);
+
+        // Draw original city point on top
+        StdDraw.setPenColor(StdDraw.RED);
+        StdDraw.filledCircle(x, y, 5);
+    }
+
+    /**
+     * Restore city to its normal red appearance
+     * @param x X coordinate of city
+     * @param y Y coordinate of city (already shifted)
+     * @param cityName Name of the city to display
+     */
+    private static void restoreCity(double x, double y, String cityName) {
+        StdDraw.setPenColor(StdDraw.RED);
+        StdDraw.filledCircle(x, y, 5);
+
+        // Redraw city name
+        StdDraw.setPenColor(StdDraw.BLACK);
+        StdDraw.setFont(new Font("Arial", Font.PLAIN, 8));
+        StdDraw.text(x, y - 15, cityName);
+    }
+
+    /**
+     * Animate a moving dot along the path
+     * @param path List of cities in the path
+     * @param cityPositions HashMap containing city positions
+     */
+    private static void animateMovingDot(ArrayList<String> path,
+                                         HashMap<String, double[]> cityPositions) {
+        if (path == null || path.size() < 2) {
+            return;
+        }
+
+        int steps = 30; // Number of interpolation steps between each city pair
+
+        for (int i = 0; i < path.size() - 1; i++) {
+            String city1 = path.get(i);
+            String city2 = path.get(i + 1);
+
+            double[] pos1 = cityPositions.get(city1);
+            double[] pos2 = cityPositions.get(city2);
+
+            if (pos1 != null && pos2 != null) {
+                double x1 = pos1[0];
+                double y1 = pos1[1] + 130;
+                double x2 = pos2[0];
+                double y2 = pos2[1] + 130;
+
+                // Interpolate between two cities
+                for (int step = 0; step <= steps; step++) {
+                    double t = (double) step / steps; // Progress from 0 to 1
+                    double currentX = x1 + t * (x2 - x1);
+                    double currentY = y1 + t * (y2 - y1);
+
+                    // Redraw the map segment (just the area around the dot to avoid flickering)
+                    // Draw the moving dot
+                    StdDraw.setPenColor(StdDraw.BLUE);
+                    StdDraw.filledCircle(currentX, currentY, 7);
+
+                    // Draw a smaller white core for better visibility
+                    StdDraw.setPenColor(StdDraw.WHITE);
+                    StdDraw.filledCircle(currentX, currentY, 4);
+
+                    StdDraw.show();
+                    StdDraw.pause(5);
+
+                    // Erase the dot by redrawing the path
+                    StdDraw.setPenColor(StdDraw.GREEN);
+                    StdDraw.setPenRadius(0.005);
+                    StdDraw.line(x1, y1, x2, y2);
+                }
+            }
+        }
+
+        // Final highlight at destination
+        String endCity = path.get(path.size() - 1);
+        double[] endPos = cityPositions.get(endCity);
+        if (endPos != null) {
+            highlightCity(endPos[0], endPos[1] + 130, StdDraw.BOOK_LIGHT_BLUE);
+            StdDraw.show();
+            StdDraw.pause(200);
+            restoreCity(endPos[0], endPos[1] + 130, endCity);
+            StdDraw.show();
+        }
     }
 }
