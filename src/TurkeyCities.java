@@ -1,4 +1,5 @@
 // TurkeyCities.java
+// @author Berker Kelesoglu
 // 81 Turkish province centroids (approximate) + a simplified Turkey border polygon
 // Draws a bordered “container” within the StdDraw canvas and renders the map + cities inside it.
 // Works with Princeton StdDraw: https://introcs.cs.princeton.edu/java/stdlib/
@@ -244,33 +245,35 @@ public final class TurkeyCities {
 
     public static HashMap<String, double[]> renderMapWithCities() {
         // Render the map with space below for input UI
+
+        // setting canvas size and adding map.png according to width and height of canvas
         StdDraw.setCanvasSize(2377 / 2, (1055 + 130) / 2);
         StdDraw.setXscale(0, 2377);
         StdDraw.setYscale(0, 1055 + 130);
         StdDraw.picture(2380 / 2.0, (1055 + 130) / 2.0 + 65, "map.png", 2377, 1055);
 
-        // HashMap to store city positions
+        // HashMap to store city positions as key and value(x,y)
         HashMap<String, double[]> cityPositions = new HashMap<>();
 
         // Read and store city coordinates
         try {
-            File file = new File("src/datas/city-coordinates.txt");
+            File file = new File("src/datas/city-coordinates.txt"); // get the file to scan cities line by line
             Scanner scanner = new Scanner(file);
 
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                String[] parts = line.split(", ");
+            while (scanner.hasNextLine()) {                             // check if we are in the last line
+                String line = scanner.nextLine();                       // get the line data
+                String[] parts = line.split(", ");               // divides the line as cityName and coordinates
 
-                if (parts.length == 3) {
-                    String cityName = parts[0];
-                    double x = Double.parseDouble(parts[1]);
-                    double y = Double.parseDouble(parts[2]);
+                if (parts.length == 3) {                                // if divided correctly we move on
+                    String cityName = parts[0];                         // get the cityName
+                    double x = Double.parseDouble(parts[1]);            // get long data
+                    double y = Double.parseDouble(parts[2]);            // get lat data
 
                     // Store city position
-                    cityPositions.put(cityName, new double[]{x, y});
+                    cityPositions.put(cityName, new double[]{x, y});  // put each city inside hashmap as <key,value> pair
                 }
             }
-            scanner.close();
+            scanner.close();                                          // since we converted text file to hash map we are done
         } catch (FileNotFoundException e) {
             System.err.println("Error: city-coordinates.txt file not found!");
             e.printStackTrace();
@@ -280,16 +283,16 @@ public final class TurkeyCities {
         StdDraw.setPenColor(StdDraw.RED);
         StdDraw.setPenRadius(0.005);
 
-        for (String cityName : cityPositions.keySet()) {
-            double[] pos = cityPositions.get(cityName);
-            double x = pos[0];
-            double y = pos[1] + 130; // Shift up for input area
+        for (String cityName : cityPositions.keySet()) {                    // get key name of each city and loop through
+            double[] pos = cityPositions.get(cityName);                     // get coordinate values of the city
+            double x = pos[0];                                              // get long data
+            double y = pos[1] + 130; // Shift up for input area             // get lat data
 
             // Draw city point
-            StdDraw.filledCircle(x, y, 5);
+            StdDraw.filledCircle(x, y, 5);                           // according to position put filled circle on the map
 
             // Draw city name
-            StdDraw.setPenColor(StdDraw.BLACK);
+            StdDraw.setPenColor(StdDraw.BLACK);                             // city name color
             StdDraw.setFont(new Font("Arial", Font.PLAIN, 8));
             StdDraw.text(x, y - 15, cityName);
             StdDraw.setPenColor(StdDraw.RED);
