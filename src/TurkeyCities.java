@@ -26,14 +26,11 @@ public final class TurkeyCities {
     public static void main(String[] args) {
         HashMap<String, double[]> cityPositions = renderMapWithCities();
         drawRoads(cityPositions);
-        drawInputUI();
+        drawInputUI(null, 0.0);
         StdDraw.show();
         handleInput(cityPositions);
     }
 
-    public static void drawInputUI() {
-        drawInputUI(null, 0.0);
-    }
 
     public static void drawInputUI(ArrayList<String> path, double totalDistance) {
         // Draw input boxes and button below the map
@@ -130,7 +127,7 @@ public final class TurkeyCities {
                 if (x >= 300 && x <= 600 && y >= 65 && y <= 95) {
                     activeField = "departure";
                     errorMessage = ""; // Clear error when clicking input
-                    drawInputUI();
+                    drawInputUI(null, 0.0);
                     StdDraw.show();
                     StdDraw.pause(200); // giving timeout to get rid of from flash effect
                 }
@@ -138,7 +135,7 @@ public final class TurkeyCities {
                 else if (x >= 300 && x <= 600 && y >= 25 && y <= 55) {
                     activeField = "destination";
                     errorMessage = ""; // Clear error when clicking input
-                    drawInputUI();
+                    drawInputUI(null, 0.0);
                     StdDraw.show();
                     StdDraw.pause(200); // giving timeout to get rid of from flash effect
                 }
@@ -174,17 +171,17 @@ public final class TurkeyCities {
                                 StdDraw.show();
                             } else {
                                 errorMessage = "No path found between these cities!";
-                                drawInputUI();
+                                drawInputUI(null, 0.0);
                                 StdDraw.show();
                             }
                         } else {
                             errorMessage = "Invalid city names! Please check your input.";
-                            drawInputUI();
+                            drawInputUI(null, 0.0);
                             StdDraw.show();
                         }
                     } else {
                         errorMessage = "Please enter both departure and destination cities!";
-                        drawInputUI();
+                        drawInputUI(null, 0.0);
                         StdDraw.show();
                     }
 
@@ -212,7 +209,7 @@ public final class TurkeyCities {
                 }
 
                 // Only redraw the input UI, not the entire canvas
-                drawInputUI();
+                drawInputUI(null, 0.0);
                 StdDraw.show(20);
             }
 
