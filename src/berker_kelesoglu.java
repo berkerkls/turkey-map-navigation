@@ -1,34 +1,36 @@
-// TurkeyCities.java
 // @author Berker Kelesoglu
+// Student ID: 2025719045
+// Date: 17 October 2025
 // 81 Turkish province centroids (approximate) + a simplified Turkey border polygon
 // Draws a bordered “container” within the StdDraw canvas and renders the map + cities inside it.
 // Works with Princeton StdDraw: https://introcs.cs.princeton.edu/java/stdlib/
 // NOTE: Coordinates are approximate (suitable for cartographic visualization, not surveying).
 
 import java.awt.Font;
-import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Scanner;
 
-public final class TurkeyCities {
-    // --- Geographic bounds to project lon/lat into [0,1] (before container inset) --s
-
+public final class berker_kelesoglu {
     private static String departureCity = "";
     private static String destinationCity = "";
     private static String activeField = ""; // "departure" or "destination"
     private static String errorMessage = "";
 
+    // Arrays to store city data
+    private static String[] cityNames;
+    private static double[] xCoordinates;
+    private static double[] yCoordinates;
+
 
     public static void main(String[] args) {
-        HashMap<String, double[]> cityPositions = renderMapWithCities();
-        drawRoads(cityPositions);
+        // Load city data into static arrays
+        renderMapWithCities();
+        drawRoads(cityNames, xCoordinates, yCoordinates);
         drawInputUI(null, 0.0);
         StdDraw.show();
-        handleInput(cityPositions);
+        handleInput(cityNames, xCoordinates, yCoordinates);
     }
 
 
@@ -87,10 +89,10 @@ public final class TurkeyCities {
             StdDraw.setFont(new Font("Arial", Font.BOLD, 11));
 
             // Starting city
-            StdDraw.textLeft(900, 95, "Enter starting city: " + path.get(0));
+            StdDraw.textLeft(900, 95, "Starting city: " + path.get(0));
 
             // Destination city
-            StdDraw.textLeft(900, 75, "Enter destination city: " + path.get(path.size() - 1));
+            StdDraw.textLeft(900, 75, "Destination city: " + path.get(path.size() - 1));
 
             // Total distance
             StdDraw.textLeft(900, 55, "Total Distance: " + String.format("%.2f", totalDistance) + " km");
@@ -109,14 +111,18 @@ public final class TurkeyCities {
             StdDraw.text(450, 15, errorMessage);
         }
     }
-
-    public static boolean validateCity(String cityName, HashMap<String, double[]> cityPositions) {
-        return cityPositions.containsKey(cityName);
+    /**
+     * Validate if a city name exists in the city names array
+     * @param cityName Name of the city to validate
+     * @param cityNames Array of all city names
+     * @return true if city exists, false otherwise
+     */
+    public static boolean validateCity(String cityName, String[] cityNames) {
+        return getCityIndex(cityName, cityNames) != -1;
     }
 
-    public static void handleInput(HashMap<String, double[]> cityPositions) {
+    public static void handleInput(String[] cityNames, double[] xCoordinates, double[] yCoordinates) {
         boolean inputActive = true;
-
         while (inputActive) {
             // Handle mouse clicks
             if (StdDraw.isMousePressed()) {
@@ -125,7 +131,7 @@ public final class TurkeyCities {
 
                 // Check if departure input box clicked
                 if (x >= 300 && x <= 600 && y >= 65 && y <= 95) {
-                    activeField = "departure";
+                    activeField = "departure";  // keep last clicked input to assign its value.
                     errorMessage = ""; // Clear error when clicking input
                     drawInputUI(null, 0.0);
                     StdDraw.show();
@@ -133,7 +139,7 @@ public final class TurkeyCities {
                 }
                 // Check if destination input box clicked
                 else if (x >= 300 && x <= 600 && y >= 25 && y <= 55) {
-                    activeField = "destination";
+                    activeField = "destination"; // keep last clicked input to assign its value
                     errorMessage = ""; // Clear error when clicking input
                     drawInputUI(null, 0.0);
                     StdDraw.show();
@@ -142,29 +148,29 @@ public final class TurkeyCities {
                 // Check if Start button clicked
                 else if (x >= 640 && x <= 760 && y >= 35 && y <= 85) {
                     errorMessage = ""; // Clear previous error
-                    if (!departureCity.isEmpty() && !destinationCity.isEmpty()) {
-                        if (validateCity(departureCity, cityPositions) && validateCity(destinationCity, cityPositions)) {
+                    if (!departureCity.isEmpty() && !destinationCity.isEmpty()) { // if departure and destination names are not empty
+                        if (validateCity(departureCity, cityNames) && validateCity(destinationCity, cityNames)) { // if the city names are included in cities
                             System.out.println("Finding path from " + departureCity + " to " + destinationCity);
 
-                            // Build graph structure
-                            HashMap<String, HashMap<String, Double>> graph = getRoadConnections(cityPositions);
+                            // Build graph structure (using adjacency matrix - 2D array)
+                            double[][] graph = getRoadConnections(cityNames, xCoordinates, yCoordinates);  // sets distances between two cities
 
-                            // Find shortest path using Dijkstra's algorithm
-                            ArrayList<String> path = findShortestPath(departureCity, destinationCity, graph);
+                            // Find shortest path using Dijkstra's algorithm (array-based)
+                            ArrayList<String> path = findShortestPath(departureCity, destinationCity, graph, cityNames);
 
                             // Display results
                             if (path != null) {
-                                double totalDist = getTotalDistance(path, graph);
+                                double totalDist = getTotalDistance(path, graph, cityNames);
 
                                 System.out.println("Shortest path found:");
                                 System.out.println("Path: " + String.join(" → ", path));
                                 System.out.println("Total distance: " + String.format("%.2f", totalDist) + " units");
 
                                 // Redraw the map to clear any previous path (without reinitializing canvas)
-                                redrawMapOnly(cityPositions);
+                                redrawMapOnly(cityNames, xCoordinates, yCoordinates);
 
                                 // Draw the shortest path on the map
-                                drawShortestPath(path, cityPositions);
+                                drawShortestPath(path, cityNames, xCoordinates, yCoordinates);
 
                                 // Draw UI with path information
                                 drawInputUI(path, totalDist);
@@ -195,16 +201,16 @@ public final class TurkeyCities {
                 errorMessage = ""; // Clear error message when user types
 
                 if (activeField.equals("departure")) {
-                    if (key == '\b' && !departureCity.isEmpty()) {
-                        departureCity = departureCity.substring(0, departureCity.length() - 1);
-                    } else if (key != '\b' && key != '\n') {
-                        departureCity += key;
+                    if (key == '\b' && !departureCity.isEmpty()) {  // if backspace is pressed and there is a value
+                        departureCity = departureCity.substring(0, departureCity.length() - 1); // delete the last value of string
+                    } else if (key != '\b' && key != '\n') { // if backspace or enter are not pressed
+                        departureCity += key;                //then append the pressed key to value
                     }
                 } else if (activeField.equals("destination")) {
-                    if (key == '\b' && !destinationCity.isEmpty()) {
-                        destinationCity = destinationCity.substring(0, destinationCity.length() - 1);
-                    } else if (key != '\b' && key != '\n') {
-                        destinationCity += key;
+                    if (key == '\b' && !destinationCity.isEmpty()) { // if backspace is pressed and there is a value
+                        destinationCity = destinationCity.substring(0, destinationCity.length() - 1); // delete the last value of string
+                    } else if (key != '\b' && key != '\n') {    // if backspace or enter are not pressed
+                        destinationCity += key;                  //then append the pressed key to value
                     }
                 }
 
@@ -213,11 +219,14 @@ public final class TurkeyCities {
                 StdDraw.show(20);
             }
 
-            StdDraw.pause(20);
+            StdDraw.pause(20); // pause effect is used to prevent flash effect
         }
     }
 
-    public static HashMap<String, double[]> renderMapWithCities() {
+    /**
+     * Render map with cities and load city data into static arrays
+     */
+    public static void renderMapWithCities() {
         // Render the map with space below for input UI
         // setting canvas size and adding map.png according to width and height of canvas
         StdDraw.setCanvasSize(2377 / 2, (1055 + 130) / 2);
@@ -225,8 +234,10 @@ public final class TurkeyCities {
         StdDraw.setYscale(0, 1055 + 130);
         StdDraw.picture(2380 / 2.0, (1055 + 130) / 2.0 + 65, "map.png", 2377, 1055);
 
-        // HashMap to store city positions as key and value(x,y)
-        HashMap<String, double[]> cityPositions = new HashMap<>();
+        // Temporary ArrayLists to store city data
+        ArrayList<String> cityNamesList = new ArrayList<>();
+        ArrayList<Double> xCoordsList = new ArrayList<>();
+        ArrayList<Double> yCoordsList = new ArrayList<>();
 
         // Read and store city coordinates
         try {
@@ -238,28 +249,40 @@ public final class TurkeyCities {
                 String[] parts = line.split(", ");               // divides the line as cityName and coordinates
 
                 if (parts.length == 3) {                                // if divided correctly we move on
-                    String cityName = parts[0];                         // get the cityName
+                    String cityNameValue = parts[0];                         // get the cityName
                     double x = Double.parseDouble(parts[1]);            // get long data
                     double y = Double.parseDouble(parts[2]);            // get lat data
 
-                    // Store city position
-                    cityPositions.put(cityName, new double[]{x, y});  // put each city inside hashmap as <key,value> pair
+                    // Store city data in ArrayLists
+                    cityNamesList.add(cityNameValue);
+                    xCoordsList.add(x);
+                    yCoordsList.add(y);
                 }
             }
-            scanner.close();                                          // since we converted text file to hash map we are done
+            scanner.close();                                          // since we converted text file to arrays we are done
         } catch (FileNotFoundException e) {
             System.err.println("Error: city-coordinates.txt file not found!");
             e.printStackTrace();
+        }
+
+        // Convert ArrayLists to static arrays
+        cityNames = new String[cityNamesList.size()];
+        xCoordinates = new double[xCoordsList.size()];
+        yCoordinates = new double[yCoordsList.size()];
+
+        for (int i = 0; i < cityNamesList.size(); i++) {
+            cityNames[i] = cityNamesList.get(i);
+            xCoordinates[i] = xCoordsList.get(i);
+            yCoordinates[i] = yCoordsList.get(i);
         }
 
         // Draw cities (shifted up by 130 pixels for input area)
         StdDraw.setPenColor(StdDraw.RED);
         StdDraw.setPenRadius(0.005);
 
-        for (String cityName : cityPositions.keySet()) {                    // get key name of each city and loop through
-            double[] pos = cityPositions.get(cityName);                     // get coordinate values of the city
-            double x = pos[0];                                              // get long data
-            double y = pos[1] + 130; // Shift up for input area             // get lat data
+        for (int i = 0; i < cityNames.length; i++) {
+            double x = xCoordinates[i];
+            double y = yCoordinates[i] + 130; // Shift up for input area
 
             // Draw city point
             StdDraw.filledCircle(x, y, 5);                           // according to position put filled circle on the map
@@ -267,15 +290,13 @@ public final class TurkeyCities {
             // Draw city name
             StdDraw.setPenColor(StdDraw.BLACK);                             // city name color
             StdDraw.setFont(new Font("Arial", Font.PLAIN, 8));  // set font
-            StdDraw.text(x, y - 15, cityName);                          // write city name under the dot
+            StdDraw.text(x, y - 15, cityNames[i]);                          // write city name under the dot
             StdDraw.setPenColor(StdDraw.RED);
         }
-
-        return cityPositions;
     }
 
-    public static void drawRoads(HashMap<String, double[]> cityPositions) {
-        // cityPosition arguments has been filled in renderMapWithCities() as <cityName,[x,y]positions>
+    public static void drawRoads(String[] cityNames, double[] xCoordinates, double[] yCoordinates) {
+        // Draw roads between connected cities
          try {
             File file = new File("src/datas/cities-roads.txt");         // get roads
             Scanner scanner = new Scanner(file);
@@ -292,12 +313,13 @@ public final class TurkeyCities {
                     String city2Name = cities[1];                           // end point
 
                     // Get coordinates for both cities
-                    double[] city1Pos = cityPositions.get(city1Name);           // get start city position
-                    double[] city2Pos = cityPositions.get(city2Name);           // get end city position
+                    int index1 = getCityIndex(city1Name, cityNames);
+                    int index2 = getCityIndex(city2Name, cityNames);
 
                     // Draw line if both cities exist (shifted up by 130 pixels)
-                    if (city1Pos != null && city2Pos != null) {
-                        StdDraw.line(city1Pos[0], city1Pos[1] + 130, city2Pos[0], city2Pos[1] + 130); // draw lines between cities we add 130 because we gave some gap for input
+                    if (index1 != -1 && index2 != -1) {
+                        StdDraw.line(xCoordinates[index1], yCoordinates[index1] + 130,
+                                     xCoordinates[index2], yCoordinates[index2] + 130); // draw lines between cities we add 130 because we gave some gap for input
                     }
                 }
             }
@@ -313,9 +335,11 @@ public final class TurkeyCities {
     /**
      * Redraw the entire map (background, cities, and roads) without reinitializing canvas
      * This is used to clear any previous paths before drawing a new one
-     * @param cityPositions HashMap containing city positions
+     * @param cityNames Array of city names
+     * @param xCoordinates Array of x coordinates
+     * @param yCoordinates Array of y coordinates
      */
-    public static void redrawMapOnly(HashMap<String, double[]> cityPositions) {
+    public static void redrawMapOnly(String[] cityNames, double[] xCoordinates, double[] yCoordinates) {
         // Redraw the background map image
         StdDraw.picture(2380 / 2.0, (1055 + 130) / 2.0 + 65, "map.png", 2377, 1055);
 
@@ -323,10 +347,9 @@ public final class TurkeyCities {
         StdDraw.setPenColor(StdDraw.RED);
         StdDraw.setPenRadius(0.005);
 
-        for (String cityName : cityPositions.keySet()) {
-            double[] pos = cityPositions.get(cityName);
-            double x = pos[0];
-            double y = pos[1] + 130; // Shift up for input area
+        for (int i = 0; i < cityNames.length; i++) {
+            double x = xCoordinates[i];
+            double y = yCoordinates[i] + 130; // Shift up for input area
 
             // Draw city point
             StdDraw.filledCircle(x, y, 5);
@@ -334,7 +357,7 @@ public final class TurkeyCities {
             // Draw city name
             StdDraw.setPenColor(StdDraw.BLACK);
             StdDraw.setFont(new Font("Arial", Font.PLAIN, 8));
-            StdDraw.text(x, y - 15, cityName);
+            StdDraw.text(x, y - 15, cityNames[i]);
             StdDraw.setPenColor(StdDraw.RED);
         }
 
@@ -354,11 +377,12 @@ public final class TurkeyCities {
                     String city1Name = cities[0];
                     String city2Name = cities[1];
 
-                    double[] city1Pos = cityPositions.get(city1Name);
-                    double[] city2Pos = cityPositions.get(city2Name);
+                    int index1 = getCityIndex(city1Name, cityNames);
+                    int index2 = getCityIndex(city2Name, cityNames);
 
-                    if (city1Pos != null && city2Pos != null) {
-                        StdDraw.line(city1Pos[0], city1Pos[1] + 130, city2Pos[0], city2Pos[1] + 130);
+                    if (index1 != -1 && index2 != -1) {
+                        StdDraw.line(xCoordinates[index1], yCoordinates[index1] + 130,
+                                     xCoordinates[index2], yCoordinates[index2] + 130);
                     }
                 }
             }
@@ -368,7 +392,6 @@ public final class TurkeyCities {
         }
     }
 
-    // ==================== DIJKSTRA ALGORITHM FUNCTIONS ====================
 
     /**
      * Calculate Euclidean distance between two points
@@ -383,19 +406,44 @@ public final class TurkeyCities {
     }
 
     /**
-     * Build graph structure with road connections and distances
-     * @param cityPositions HashMap containing city positions
-     * @return Graph structure: city -> (neighbor city -> distance)
+     * Get city index from city name
+     * @param cityName Name of the city to find
+     * @param cityNames Array of city names
+     * @return Index of the city, or -1 if not found
      */
-    public static HashMap<String, HashMap<String, Double>> getRoadConnections(
-            HashMap<String, double[]> cityPositions) {
+    public static int getCityIndex(String cityName, String[] cityNames) {
+        for (int i = 0; i < cityNames.length; i++) {
+            if (cityNames[i].equals(cityName)) {
+                return i;
+            }
+        }
+        return -1;
+    }
 
-        // Main structure: city -> (neighbor city -> distance)
-        HashMap<String, HashMap<String, Double>> graph = new HashMap<>();
+    /**
+     * Build graph structure with road connections and distances using adjacency matrix
+     * @param cityNames Array of city names
+     * @param xCoordinates Array of x coordinates
+     * @param yCoordinates Array of y coordinates
+     * @return 2D array representing adjacency matrix where graph[i][j] is distance from city i to city j
+     *         Returns 0.0 if no direct road exists between cities
+     * Example return value:
+     *   graph[0][1] = 150.5 means distance from city at index 0 to city at index 1 is 150.5
+     *   graph[0][5] = 0.0 means no direct road between city 0 and city 5
+     */
+    public static double[][] getRoadConnections(String[] cityNames, double[] xCoordinates, double[] yCoordinates) {
+        int numCities = cityNames.length;   // keep number of cities
 
-        // Initialize empty neighbor list for all cities
-        for (String city : cityPositions.keySet()) {
-            graph.put(city, new HashMap<>());
+        // Create adjacency matrix (2D array)
+        // graph[i][j] represents distance from city i to city j
+        // 0.0 means no direct connection
+        double[][] graph = new double[numCities][numCities];  // store departure and destination cities separate arrays in an array
+
+        // Initialize all distances to 0 (no connection)
+        for (int i = 0; i < numCities; i++) {
+            for (int j = 0; j < numCities; j++) {
+                graph[i][j] = 0.0;
+            }
         }
 
         try {
@@ -404,22 +452,22 @@ public final class TurkeyCities {
 
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
-                String[] cities = line.split(" - ");
+                String[] cities = line.split(" - ");    // divide cities
 
                 if (cities.length == 2) {
                     String city1 = cities[0];
                     String city2 = cities[1];
 
-                    double[] pos1 = cityPositions.get(city1);
-                    double[] pos2 = cityPositions.get(city2);
+                    // Get indices for both cities
+                    int index1 = getCityIndex(city1, cityNames);
+                    int index2 = getCityIndex(city2, cityNames);
 
-                    if (pos1 != null && pos2 != null) {
+                    if (index1 != -1 && index2 != -1) {
                         // Calculate distance between cities
-                        double distance = calculateDistance(pos1[0], pos1[1], pos2[0], pos2[1]);
-
-                        // Add bidirectional road (A->B and B->A)
-                        graph.get(city1).put(city2, distance);
-                        graph.get(city2).put(city1, distance);
+                        double distance = calculateDistance(xCoordinates[index1], yCoordinates[index1], xCoordinates[index2], yCoordinates[index2]);
+                        // Set bidirectional road (A->B and B->A)
+                        graph[index1][index2] = distance;
+                        graph[index2][index1] = distance;
                     }
                 }
             }
@@ -432,63 +480,75 @@ public final class TurkeyCities {
     }
 
     /**
-     * Find shortest path between two cities using Dijkstra's algorithm
+     * Find shortest path between two cities using Dijkstra's algorithm (array-based implementation)
      * @param startCity Starting city name
      * @param endCity Destination city name
-     * @param graph Graph structure with road connections
+     * @param graph 2D array adjacency matrix with road distances
+     * @param cityNames Array mapping indices to city names
      * @return List of cities in shortest path, or null if no path exists
      */
     public static ArrayList<String> findShortestPath(
             String startCity,
             String endCity,
-            HashMap<String, HashMap<String, Double>> graph) {
+            double[][] graph,
+            String[] cityNames) {
 
-        // Step 1: Initialize distances and tracking structures
-        HashMap<String, Double> distances = new HashMap<>();
-        HashMap<String, String> previousCity = new HashMap<>();
-        HashMap<String, Boolean> visited = new HashMap<>();
+        int numCities = cityNames.length;
+
+        // Get indices for start and end cities
+        int startIndex = getCityIndex(startCity, cityNames);
+        int endIndex = getCityIndex(endCity, cityNames);
+
+        if (startIndex == -1 || endIndex == -1) {
+            return null; // City not found
+        }
+
+        // Step 1: Initialize distances and tracking arrays
+        double[] distances = new double[numCities];
+        int[] previousCity = new int[numCities]; // Store index of previous city
+        boolean[] visited = new boolean[numCities];
 
         // Set initial values for all cities
-        for (String city : graph.keySet()) {
-            distances.put(city, Double.POSITIVE_INFINITY);
-            visited.put(city, false);
+        for (int i = 0; i < numCities; i++) {
+            distances[i] = Double.POSITIVE_INFINITY;
+            previousCity[i] = -1; // -1 means no previous city
+            visited[i] = false;
         }
-        distances.put(startCity, 0.0);
+        distances[startIndex] = 0.0;
 
         // Step 2: Main loop - process each city
-        for (int i = 0; i < graph.size(); i++) {
+        for (int i = 0; i < numCities; i++) {
             // Step 2a: Find unvisited city with minimum distance
-            String currentCity = null;
+            int currentCityIndex = -1;
             double minDistance = Double.POSITIVE_INFINITY;
 
-            for (String city : graph.keySet()) {
-                if (!visited.get(city) && distances.get(city) < minDistance) {
-                    minDistance = distances.get(city);
-                    currentCity = city;
+            for (int j = 0; j < numCities; j++) {
+                if (!visited[j] && distances[j] < minDistance) {
+                    minDistance = distances[j];
+                    currentCityIndex = j;
                 }
             }
 
             // No more reachable cities
-            if (currentCity == null) break;
+            if (currentCityIndex == -1) break;
 
             // Reached destination, exit early
-            if (currentCity.equals(endCity)) break;
+            if (currentCityIndex == endIndex) break;
 
             // Step 2b: Mark current city as visited
-            visited.put(currentCity, true);
+            visited[currentCityIndex] = true;
 
             // Step 2c: Check all neighbors and update their distances
-            HashMap<String, Double> neighbors = graph.get(currentCity);
-
-            for (String neighbor : neighbors.keySet()) {
-                if (!visited.get(neighbor)) {
-                    double roadDistance = neighbors.get(neighbor);
-                    double newDistance = distances.get(currentCity) + roadDistance;
+            for (int neighborIndex = 0; neighborIndex < numCities; neighborIndex++) {
+                // If there's a road (distance > 0) and neighbor not visited
+                if (graph[currentCityIndex][neighborIndex] > 0 && !visited[neighborIndex]) {
+                    double roadDistance = graph[currentCityIndex][neighborIndex];
+                    double newDistance = distances[currentCityIndex] + roadDistance;
 
                     // Found a shorter path?
-                    if (newDistance < distances.get(neighbor)) {
-                        distances.put(neighbor, newDistance);
-                        previousCity.put(neighbor, currentCity);
+                    if (newDistance < distances[neighborIndex]) {
+                        distances[neighborIndex] = newDistance;
+                        previousCity[neighborIndex] = currentCityIndex;
                     }
                 }
             }
@@ -496,31 +556,33 @@ public final class TurkeyCities {
 
         // Step 3: Reconstruct path by following previous cities backwards
         ArrayList<String> path = new ArrayList<>();
-        String current = endCity;
 
         // No path exists if we never reached the end city
-        if (!previousCity.containsKey(endCity) && !startCity.equals(endCity)) {
+        if (previousCity[endIndex] == -1 && startIndex != endIndex) {
             return null;
         }
 
         // Build path backwards from end to start
-        while (current != null) {
-            path.add(0, current); // Add to beginning
-            current = previousCity.get(current);
+        int currentIndex = endIndex;
+        while (currentIndex != -1) {
+            path.add(0, cityNames[currentIndex]); // Add city name to beginning
+            currentIndex = previousCity[currentIndex];
         }
 
         return path;
     }
 
     /**
-     * Calculate total distance of a path
+     * Calculate total distance of a path (array-based implementation)
      * @param path List of cities in the path
-     * @param graph Graph structure with distances
+     * @param graph 2D array adjacency matrix with road distances
+     * @param cityNames Array mapping indices to city names
      * @return Total distance of the path
      */
     public static double getTotalDistance(
             ArrayList<String> path,
-            HashMap<String, HashMap<String, Double>> graph) {
+            double[][] graph,
+            String[] cityNames) {
 
         if (path == null || path.size() < 2) {
             return 0.0;
@@ -533,9 +595,15 @@ public final class TurkeyCities {
             String city1 = path.get(i);
             String city2 = path.get(i + 1);
 
-            Double distance = graph.get(city1).get(city2);
-            if (distance != null) {
-                totalDistance += distance;
+            // Get indices for both cities
+            int index1 = getCityIndex(city1, cityNames);
+            int index2 = getCityIndex(city2, cityNames);
+
+            if (index1 != -1 && index2 != -1) {
+                double distance = graph[index1][index2];
+                if (distance > 0) {
+                    totalDistance += distance;
+                }
             }
         }
 
@@ -548,11 +616,15 @@ public final class TurkeyCities {
      * 1. Immediate green path drawing (all at once)
      * 2. Moving dot that travels along the path
      * @param path List of cities in the shortest path
-     * @param cityPositions HashMap containing city positions
+     * @param cityNames Array of city names
+     * @param xCoordinates Array of x coordinates
+     * @param yCoordinates Array of y coordinates
      */
     public static void drawShortestPath(
             ArrayList<String> path,
-            HashMap<String, double[]> cityPositions) {
+            String[] cityNames,
+            double[] xCoordinates,
+            double[] yCoordinates) {
 
         if (path == null || path.size() < 2) {
             return;
@@ -566,12 +638,13 @@ public final class TurkeyCities {
             String city1 = path.get(i);
             String city2 = path.get(i + 1);
 
-            double[] pos1 = cityPositions.get(city1);
-            double[] pos2 = cityPositions.get(city2);
+            int index1 = getCityIndex(city1, cityNames);
+            int index2 = getCityIndex(city2, cityNames);
 
-            if (pos1 != null && pos2 != null) {
+            if (index1 != -1 && index2 != -1) {
                 // Draw path segment immediately
-                StdDraw.line(pos1[0], pos1[1] + 130, pos2[0], pos2[1] + 130);
+                StdDraw.line(xCoordinates[index1], yCoordinates[index1] + 130,
+                           xCoordinates[index2], yCoordinates[index2] + 130);
             }
         }
 
@@ -579,7 +652,7 @@ public final class TurkeyCities {
         StdDraw.pause(300);
 
         // Phase 2: Moving dot animation along the completed path
-        animateMovingDot(path, cityPositions);
+        animateMovingDot(path, cityNames, xCoordinates, yCoordinates);
     }
 
     /**
@@ -617,10 +690,11 @@ public final class TurkeyCities {
     /**
      * Animate a moving dot along the path
      * @param path List of cities in the path
-     * @param cityPositions HashMap containing city positions
+     * @param cityNames Array of city names
+     * @param xCoordinates Array of x coordinates
+     * @param yCoordinates Array of y coordinates
      */
-    private static void animateMovingDot(ArrayList<String> path,
-                                         HashMap<String, double[]> cityPositions) {
+    private static void animateMovingDot(ArrayList<String> path, String[] cityNames, double[] xCoordinates, double[] yCoordinates) {
         if (path == null || path.size() < 2) {
             return;
         }
@@ -631,14 +705,14 @@ public final class TurkeyCities {
             String city1 = path.get(i);
             String city2 = path.get(i + 1);
 
-            double[] pos1 = cityPositions.get(city1);
-            double[] pos2 = cityPositions.get(city2);
+            int index1 = getCityIndex(city1, cityNames);
+            int index2 = getCityIndex(city2, cityNames);
 
-            if (pos1 != null && pos2 != null) {
-                double x1 = pos1[0];
-                double y1 = pos1[1] + 130;
-                double x2 = pos2[0];
-                double y2 = pos2[1] + 130;
+            if (index1 != -1 && index2 != -1) {
+                double x1 = xCoordinates[index1];
+                double y1 = yCoordinates[index1] + 130;
+                double x2 = xCoordinates[index2];
+                double y2 = yCoordinates[index2] + 130;
 
                 // Interpolate between two cities
                 for (int step = 0; step <= steps; step++) {
@@ -668,12 +742,12 @@ public final class TurkeyCities {
 
         // Final highlight at destination
         String endCity = path.get(path.size() - 1);
-        double[] endPos = cityPositions.get(endCity);
-        if (endPos != null) {
-            highlightCity(endPos[0], endPos[1] + 130, StdDraw.BOOK_LIGHT_BLUE);
+        int endIndex = getCityIndex(endCity, cityNames);
+        if (endIndex != -1) {
+            highlightCity(xCoordinates[endIndex], yCoordinates[endIndex] + 130, StdDraw.BOOK_LIGHT_BLUE);
             StdDraw.show();
             StdDraw.pause(200);
-            restoreCity(endPos[0], endPos[1] + 130, endCity);
+            restoreCity(xCoordinates[endIndex], yCoordinates[endIndex] + 130, endCity);
             StdDraw.show();
         }
     }
